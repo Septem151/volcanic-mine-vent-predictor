@@ -76,6 +76,6 @@ public class Chamber {
     }
 
     public boolean isFailing() {
-        return status <= 40 || status >= 60;
+        return status < 40 || status > 60;
     }
 }

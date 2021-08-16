@@ -99,14 +99,14 @@ public class Predictor {
 
     public boolean isAFailing() {
         int bStatus = mine.getBChamber().getStatus();
-        boolean bMaxed = bStatus == 0 || bStatus == 100;
         int cStatus = mine.getCChamber().getStatus();
-        boolean cMaxed = cStatus == 0 || cStatus == 100;
-        boolean bFailing = mine.getBChamber().isFailing();
-        boolean cFailing = mine.getCChamber().isFailing();
         int bChange = Math.abs(bStatus - mine.getBChamber().getPrevStatus());
         int cChange = Math.abs(cStatus - mine.getCChamber().getPrevStatus());
         int stabilityChange = mine.getStability() - mine.getPrevStability();
+        boolean bFailing = mine.getBChamber().isFailing();
+        boolean cFailing = mine.getCChamber().isFailing();
+        boolean bMaxed = bChange == 0 && (bStatus == 0 || bStatus == 100);
+        boolean cMaxed = cChange == 0 && (cStatus == 0 || cStatus == 100);
         return bChange == 2 || cChange == 2 || (bChange == 1 && !bFailing)
                 || (bChange == 0 && cChange == 1 && !cFailing)
                 || (bMaxed && cMaxed && stabilityChange <= -12);
