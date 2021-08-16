@@ -102,25 +102,13 @@ public class Predictor {
         boolean bMaxed = bStatus == 0 || bStatus == 100;
         int cStatus = mine.getCChamber().getStatus();
         boolean cMaxed = cStatus == 0 || cStatus == 100;
+        boolean bFailing = mine.getBChamber().isFailing();
+        boolean cFailing = mine.getCChamber().isFailing();
         int bChange = Math.abs(bStatus - mine.getBChamber().getPrevStatus());
         int cChange = Math.abs(cStatus - mine.getCChamber().getPrevStatus());
-        if ((bChange == 2 && cChange == 1) || (bChange == 2 && cChange == 2)
-                || (bMaxed && !cMaxed && bChange == 0 && cChange == 2)
-                || (!bMaxed && cMaxed && bChange == 2 && cChange == 0)) {
-            return true;
-        }
-        if ((bChange == 0 && cChange == 1) || (bChange == 0 && cChange == 0)
-                || (bMaxed && !cMaxed && bChange == 0 && cChange == 0)
-                || (!bMaxed && cMaxed && bChange == 0 && cChange == 0)) {
-            return false;
-        }
-        if (bMaxed && !cMaxed && bChange == 0 && cChange == 1) {
-            return !mine.getCChamber().isFailing();
-        }
-        if (!bMaxed && cMaxed && bChange == 1 && cChange == 0) {
-            return !mine.getBChamber().isFailing();
-        }
-        // If we don't know (both B and C are maxed out) just assume A is failing
-        return true;
+        int stabilityChange = mine.getStability() - mine.getPrevStability();
+        return bChange == 2 || cChange == 2 || (bChange == 1 && !bFailing)
+                || (bChange == 0 && cChange == 1 && !cFailing)
+                || (bMaxed && cMaxed && stabilityChange <= -12);
     }
 }
