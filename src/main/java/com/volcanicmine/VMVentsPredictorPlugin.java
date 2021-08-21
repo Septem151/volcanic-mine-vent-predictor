@@ -5,7 +5,6 @@ import java.util.Set;
 import javax.inject.Inject;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Provides;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.coords.WorldPoint;
@@ -18,21 +17,23 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.util.ColorUtil;
 
-@Slf4j
 @PluginDescriptor(name = "Volcanic Mine Vents Predictor")
 public class VMVentsPredictorPlugin extends Plugin {
     protected static final Set<Integer> MAP_REGIONS = ImmutableSet.of(15262, 15263);
     protected static final String START_MESSAGE =
             "The volcano awakens! You can now access the area below...";
+    protected static final String EARTHQUAKE_MESSAGE = "A sudden earthquake strikes the cavern!";
     protected static final Color STATUS_COLOR = new Color(102, 102, 153);
     protected static final int VM_WIDGET_GROUP_ID = 611;
     protected static final int VM_WIDGET_VENT_A_ID = 17;
+    protected static final int VM_SCRIPT_ID = 2022;
 
     private boolean isMineStarted;
     private int curTick;
     private Mine mine;
     private Predictor predictor;
-    private boolean isAfterFirstUpdateTick;
+    private boolean isChamberUpdateSkipped;
+    private boolean isStabilityUpdateSkipped;
 
     @Inject
     private Client client;
@@ -60,9 +61,15 @@ public class VMVentsPredictorPlugin extends Plugin {
 
         // Start counting game ticks when the mine starts
         if (chatMessage.getMessage().equals(START_MESSAGE)) {
-            isMineStarted = true;
-            mine = new Mine(client);
-            predictor = new Predictor(mine);
+            start();
+        }
+
+        if (chatMessage.getMessage().equals(EARTHQUAKE_MESSAGE)) {
+            if (isChamberUpdateTick()) {
+                isChamberUpdateSkipped = true;
+            } else if (isStabilityUpdateTick()) {
+                isStabilityUpdateSkipped = true;
+            }
         }
     }
 
@@ -79,34 +86,38 @@ public class VMVentsPredictorPlugin extends Plugin {
 
         curTick++;
 
-        // if (curTick < Mine.VENT_RESET_TICK) {
-        // return;
-        // }
-
-        boolean isStabilityUpdateTick = curTick % Mine.STABILITY_UPDATE_TICKS == 0;
-        boolean isVentUpdateTick = curTick % Chamber.VENT_UPDATE_TICKS == 0;
-
-        mine.update(isStabilityUpdateTick, isVentUpdateTick);
-
-        // If A chamber has been checked, reset the plugin
-        // and stop counting.
-        if (mine.getAChamber().isStatusKnown()) {
-            reset();
+        if (curTick == Mine.VENT_RESET_TICK) {
+            // At the 5 min reset, treat this as if it's just a brand new game
+            // Return because the vent status is new, and there's a possibility
+            // that a vent gets checked immediately on the same tick,
+            // which could cause some issues with the prediction.
+            start();
             return;
         }
 
-        if (!mine.getAChamber().isStatusKnown() && mine.getBChamber().isStatusKnown()
-                && mine.getCChamber().isStatusKnown()) {
-            if (isAfterFirstUpdateTick && isVentUpdateTick) {
-                predictor.predictOnVentUpdate();
-            }
-            if (isAfterFirstUpdateTick && isStabilityUpdateTick) {
-                predictor.predictOnStabilityUpdate();
+        boolean shouldUpdateChambers = isChamberUpdateTick() && !isChamberUpdateSkipped;
+        boolean shouldUpdateStability = isStabilityUpdateTick() && !isStabilityUpdateSkipped;
+
+        mine.update(shouldUpdateChambers, shouldUpdateStability);
+
+        // Manually check status of A to see if we should reset
+        // The reason we need to manually check is because if we don't,
+        // we'll only stop updating the text of the Vent Status widget
+        // on the next chamber or stability update.
+        int aStatus = client.getVarbitValue(Chamber.VENT_A_VARBIT);
+        if (aStatus != Chamber.UNKNOWN_STATUS) {
+            return;
+        }
+
+        isChamberUpdateSkipped = false;
+        isStabilityUpdateSkipped = false;
+
+        if (mine.getBChamber().isStatusKnown() && mine.getCChamber().isStatusKnown()) {
+            // Make predictions for A
+            if (mine.getNumChamberUpdates() > 0) {
+                predictor.update(shouldUpdateChambers, shouldUpdateStability);
             }
             setVentStatusText();
-            if (isVentUpdateTick) {
-                isAfterFirstUpdateTick = true;
-            }
         }
     }
 
@@ -122,23 +133,30 @@ public class VMVentsPredictorPlugin extends Plugin {
         return MAP_REGIONS.contains(playerRegion);
     }
 
+    private boolean isChamberUpdateTick() {
+        return curTick % Chamber.VENT_UPDATE_TICKS == 0;
+    }
+
+    private boolean isStabilityUpdateTick() {
+        return curTick % Mine.STABILITY_UPDATE_TICKS == 0;
+    }
+
+    private void start() {
+        isMineStarted = true;
+        mine = new Mine(client);
+        predictor = new APredictor(mine);
+    }
+
     private void reset() {
         isMineStarted = false;
         curTick = -1;
         mine = null;
         predictor = null;
-        isAfterFirstUpdateTick = false;
     }
 
     private void setVentStatusText() {
-        Prediction prediction = predictor.getPrediction();
         Widget ventWidget = client.getWidget(VM_WIDGET_GROUP_ID, VM_WIDGET_VENT_A_ID);
-        String text;
-        if (prediction == null) {
-            text = "(?)%";
-        } else {
-            text = prediction.toString();
-        }
-        ventWidget.setText("A: " + ColorUtil.wrapWithColorTag(text, STATUS_COLOR));
+        ventWidget.setText(
+                "A: " + ColorUtil.wrapWithColorTag(predictor.getInGameString(), STATUS_COLOR));
     }
 }

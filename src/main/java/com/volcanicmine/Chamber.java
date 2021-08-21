@@ -1,5 +1,7 @@
 package com.volcanicmine;
 
+import static com.volcanicmine.NumUtil.isBetweenExcl;
+import static com.volcanicmine.NumUtil.isEither;
 import lombok.Getter;
 import net.runelite.api.Client;
 
@@ -9,8 +11,7 @@ public class Chamber {
     protected static final int VENT_A_VARBIT = 5939;
     protected static final int VENT_B_VARBIT = 5940;
     protected static final int VENT_C_VARBIT = 5942;
-
-    private static final int UNKNOWN_STATUS = 127;
+    protected static final int UNKNOWN_STATUS = 127;
 
     private static enum Name {
         A, B, C
@@ -30,6 +31,8 @@ public class Chamber {
     private Chamber(Name name, Client client) {
         this.name = name;
         this.client = client;
+        prevStatus = status = 127;
+        prevBlocked = blocked = false;
     }
 
     public static Chamber A(Client client) {
@@ -44,11 +47,9 @@ public class Chamber {
         return new Chamber(Name.C, client);
     }
 
-    public void update(boolean isVentUpdateTick) {
-        if (isVentUpdateTick) {
-            prevStatus = status;
-            prevBlocked = blocked;
-        }
+    public void update() {
+        prevStatus = status;
+        prevBlocked = blocked;
         int chambersVarbit = client.getVarbitValue(CHAMBER_STATUS_VARBIT);
         int varbitId;
         switch (name) {
@@ -67,15 +68,19 @@ public class Chamber {
         status = client.getVarbitValue(varbitId);
     }
 
-    public void update() {
-        update(false);
-    }
-
     public boolean isStatusKnown() {
         return status != UNKNOWN_STATUS;
     }
 
-    public boolean isFailing() {
-        return status < 40 || status > 60;
+    public boolean isPrevFailing() {
+        return !isBetweenExcl(prevStatus, 40, 60);
+    }
+
+    public boolean isMaxed() {
+        return (this.getStatusDiff() == 0 && isEither(status, 0, 100));
+    }
+
+    public int getStatusDiff() {
+        return status - prevStatus;
     }
 }
