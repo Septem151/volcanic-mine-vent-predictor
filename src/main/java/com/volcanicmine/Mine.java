@@ -27,7 +27,7 @@ public class Mine {
     }
 
     public int calculateStabilityDiff(int aStatus) {
-        return (int) Math.floor(25 - (Math.abs(aStatus - 50) + Math.abs(bChamber.getStatus() - 50)
+        return (int) Math.floor(25.0 - (Math.abs(aStatus - 50) + Math.abs(bChamber.getStatus() - 50)
                 + Math.abs(cChamber.getStatus() - 50)) / 3.0);
     }
 

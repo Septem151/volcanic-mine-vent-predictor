@@ -5,7 +5,6 @@ import static com.volcanicmine.NumUtil.isBetweenIncl;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import lombok.extern.slf4j.Slf4j;
@@ -54,29 +53,36 @@ public class APredictor implements Predictor {
                 // stability, we don't need to predict anything.
                 // We only need to update the existing predictions.
                 for (int prediction : predictions) {
+                    // int tempPred = updatePrediction(prediction, aBlocked, aFailing);
+                    // if (aFailing && (isBetweenIncl(tempPred, 0, 42)
+                    // || isBetweenIncl(tempPred, 58, 100))) {
+                    // newPredictions.add(tempPred);
+                    // } else if (!aFailing && isBetweenIncl(tempPred, 40, 60)) {
+                    // newPredictions.add(tempPred);
+                    // }
                     newPredictions.add(updatePrediction(prediction, aBlocked, aFailing));
                 }
                 if (stabilityUpdate && mine.getStability() != 100) {
                     // If it's also the same tick as a stability update,
                     // we need to make sure the prediction would have actually
                     // produced a valid stability change
-                    SortedSet<Integer> validStablePredictions = new TreeSet<Integer>();
+                    SortedSet<Integer> validStabPredictions = new TreeSet<Integer>();
                     for (int prediction : newPredictions) {
                         int stabilityDiff = mine.calculateStabilityDiff(prediction);
                         if (isBetweenIncl(Math.abs(mine.getStabilityDiff() - stabilityDiff), 0,
                                 2)) {
-                            validStablePredictions.add(prediction);
+                            validStabPredictions.add(prediction);
                         }
                     }
-                    if (validStablePredictions.size() == 0) {
+                    if (validStabPredictions.size() == 0) {
                         // If somehow we lost both predictions (occurs when B and C
                         // are maxed and the Predictor incorrectly guessed if A
                         // was failing or not, which only occurs if a vent update
                         // happens before a stab update ever occurs), then simply
                         // set the predictions to the calculation of stability.
-                        validStablePredictions = generatePredictionSet();
+                        validStabPredictions = generatePredictionSet();
                     }
-                    newPredictions = validStablePredictions;
+                    newPredictions = validStabPredictions;
                 }
                 updatePredictions(newPredictions, aFailing);
                 return;
@@ -102,10 +108,12 @@ public class APredictor implements Predictor {
                 // If we transition from Not Failing -> Failing, we know for certain
                 // what the status is based on whether A is Blocked.
                 newPredictions.add(aBlocked ? 62 : 38);
+                updatePredictions(newPredictions, aFailing);
             } else if (prevUpdate.isFailing() && !aFailing) {
                 // If we transition from Failing -> Not Failing, we know that
                 // a prediction is 1 of 2 numbers based on whether A is Blocked.
                 newPredictions.addAll(generateRangeSet(57, 42, 58, 43, aBlocked));
+                updatePredictions(newPredictions, aFailing);
             } else if (prevUpdate.isFailing() && aFailing) {
                 // If we transition from Failing -> Failing, we can narrow the range
                 // of predictions based on whether A is Blocked.
@@ -116,7 +124,6 @@ public class APredictor implements Predictor {
                 // the range of predictions based on whether A is Blocked.
                 newPredictions.addAll(generateRangeSet(40, 43, 57, 60, aBlocked));
             }
-            updatePredictions(newPredictions, aFailing);
             if (updates.size() > 1) {
                 log.info("Reached the multiple updates set");
                 // If there have been multiple updates, we need to play them back
@@ -124,15 +131,17 @@ public class APredictor implements Predictor {
                 SortedSet<Integer> validPredictions = new TreeSet<Integer>(newPredictions);
                 for (int prediction : newPredictions) {
                     int tempPrediction = prediction;
-                    ListIterator<ChamberUpdate> iterator = updates.listIterator(updates.size());
-                    while (iterator.hasPrevious()) {
-                        ChamberUpdate update = iterator.previous();
+                    for (int i = updates.size() - 1; i >= 0; i--) {
+                        ChamberUpdate update = updates.get(i);
                         if (!validPredictions.contains(prediction)) {
                             // If we've already removed the prediction, no need
                             // to process further updates.
                             break;
                         }
                         if (update.isFailing()) {
+                            // If the update was a Failing state, we know the prediction
+                            // must be within a range that either just failed or is
+                            // continuing to fail.
                             if (update.isBlocked() && !(isBetweenIncl(tempPrediction, 2, 41)
                                     || isBetweenIncl(tempPrediction, 62, 100))) {
                                 validPredictions.remove(prediction);
@@ -141,17 +150,21 @@ public class APredictor implements Predictor {
                                 validPredictions.remove(prediction);
                             }
                         } else {
+                            // If the update was a Not Failing state, we know the
+                            // prediction must be within a range that either just
+                            // transitioned to not failing or is continuing to not fail.
                             if (update.isBlocked() && !isBetweenIncl(tempPrediction, 42, 62)) {
                                 validPredictions.remove(prediction);
-                            } else if (update.isBlocked()
+                            } else if (!update.isBlocked()
                                     && !isBetweenIncl(tempPrediction, 40, 58)) {
                                 validPredictions.remove(prediction);
                             }
                         }
-                        // Update the temp prediction in the reverse direction.
+                        // Update the prediction in the reverse direction.
                         tempPrediction = updatePrediction(tempPrediction, !update.isBlocked(),
                                 update.isFailing());
                     }
+
                 }
                 newPredictions = validPredictions;
             }

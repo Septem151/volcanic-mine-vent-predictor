@@ -5,6 +5,7 @@ import java.util.Set;
 import javax.inject.Inject;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Provides;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.coords.WorldPoint;
@@ -17,6 +18,7 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.util.ColorUtil;
 
+@Slf4j
 @PluginDescriptor(name = "Volcanic Mine Vents Predictor")
 public class VMVentsPredictorPlugin extends Plugin {
     protected static final Set<Integer> MAP_REGIONS = ImmutableSet.of(15262, 15263);
@@ -112,10 +114,12 @@ public class VMVentsPredictorPlugin extends Plugin {
         isChamberUpdateSkipped = false;
         isStabilityUpdateSkipped = false;
 
+        log.info("Num chamber updates: " + mine.getNumChamberUpdates());
+
         if (mine.getBChamber().isStatusKnown() && mine.getCChamber().isStatusKnown()) {
             // Make predictions for A but wait for a little bit first
             // to gather some initial data
-            if (mine.getNumChamberUpdates() > 1) {
+            if (mine.getNumChamberUpdates() > 2) {
                 predictor.update(shouldUpdateChambers, shouldUpdateStability);
             }
 
