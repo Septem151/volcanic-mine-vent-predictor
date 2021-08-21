@@ -113,10 +113,12 @@ public class VMVentsPredictorPlugin extends Plugin {
         isStabilityUpdateSkipped = false;
 
         if (mine.getBChamber().isStatusKnown() && mine.getCChamber().isStatusKnown()) {
-            // Make predictions for A
-            if (mine.getNumChamberUpdates() > 0) {
+            // Make predictions for A but wait for a little bit first
+            // to gather some initial data
+            if (mine.getNumChamberUpdates() > 1) {
                 predictor.update(shouldUpdateChambers, shouldUpdateStability);
             }
+
             setVentStatusText();
         }
     }

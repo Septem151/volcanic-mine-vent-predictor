@@ -10,6 +10,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class APredictor implements Predictor {
     private Mine mine;
     private List<ChamberUpdate> updates;
@@ -117,6 +118,7 @@ public class APredictor implements Predictor {
             }
             updatePredictions(newPredictions, aFailing);
             if (updates.size() > 1) {
+                log.info("Reached the multiple updates set");
                 // If there have been multiple updates, we need to play them back
                 // to see which predictions make sense.
                 SortedSet<Integer> validPredictions = new TreeSet<Integer>(newPredictions);
