@@ -121,9 +121,8 @@ public class VMVentsPredictorPlugin extends Plugin {
             // to gather some initial data
             if (mine.getNumChamberUpdates() > 2) {
                 predictor.update(shouldUpdateChambers, shouldUpdateStability);
+                setVentStatusText();
             }
-
-            setVentStatusText();
         }
     }
 
