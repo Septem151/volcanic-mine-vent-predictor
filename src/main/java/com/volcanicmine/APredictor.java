@@ -7,9 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 public class APredictor implements Predictor {
     private Mine mine;
     private List<ChamberUpdate> updates;
