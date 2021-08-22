@@ -53,13 +53,15 @@ public class APredictor implements Predictor {
                 // stability, we don't need to predict anything.
                 // We only need to update the existing predictions.
                 for (int prediction : predictions) {
-                    // int tempPred = updatePrediction(prediction, aBlocked, aFailing);
-                    // if (aFailing && (isBetweenIncl(tempPred, 0, 42)
-                    // || isBetweenIncl(tempPred, 58, 100))) {
-                    // newPredictions.add(tempPred);
-                    // } else if (!aFailing && isBetweenIncl(tempPred, 40, 60)) {
-                    // newPredictions.add(tempPred);
-                    // }
+                    int tempPred = updatePrediction(prediction, aBlocked, aFailing);
+                    if (aFailing && (isBetweenIncl(tempPred, 0, 42)
+                            || isBetweenIncl(tempPred, 58, 100))) {
+                        newPredictions.add(tempPred);
+                    } else if (!aFailing && isBetweenIncl(tempPred, 40, 60)) {
+                        newPredictions.add(tempPred);
+                    } else {
+                        newPredictions.add(prediction);
+                    }
                     newPredictions.add(updatePrediction(prediction, aBlocked, aFailing));
                 }
                 if (stabilityUpdate && mine.getStability() != 100) {
@@ -124,10 +126,9 @@ public class APredictor implements Predictor {
                 // the range of predictions based on whether A is Blocked.
                 newPredictions.addAll(generateRangeSet(40, 43, 57, 60, aBlocked));
             }
+            // If there have been multiple updates, we need to play them back
+            // to see which predictions make sense.
             if (updates.size() > 1) {
-                log.info("Reached the multiple updates set");
-                // If there have been multiple updates, we need to play them back
-                // to see which predictions make sense.
                 SortedSet<Integer> validPredictions = new TreeSet<Integer>(newPredictions);
                 for (int prediction : newPredictions) {
                     int tempPrediction = prediction;
@@ -224,12 +225,12 @@ public class APredictor implements Predictor {
 
     public void updateInGameString() {
         if (predictions.size() == 0) {
-            inGameString = "(?)%";
-            return;
+            throw new RuntimeException("Prediction size should never be 0!");
         }
-        boolean isRange = !isBetweenIncl(predictions.size(), 1, 2);
+        boolean isRange = !isBetweenIncl(predictions.size(), 0, 2);
         inGameString = "(";
         int firstPrediction = predictions.first();
+        int lastPrediction = predictions.last();
         if (isRange) {
             List<Integer> ranges = new ArrayList<Integer>();
             ranges.add(firstPrediction);
@@ -239,7 +240,7 @@ public class APredictor implements Predictor {
                 if (curPrediction == firstPrediction) {
                     continue;
                 }
-                if (iterator.hasNext()) {
+                if (curPrediction != lastPrediction) {
                     int nextPrediction = iterator.next();
                     if (nextPrediction - curPrediction != 1) {
                         ranges.add(curPrediction);
@@ -247,7 +248,7 @@ public class APredictor implements Predictor {
                     }
                 }
             }
-            ranges.add(predictions.last());
+            ranges.add(lastPrediction);
             for (int i = 0; i < ranges.size(); i += 2) {
                 inGameString += String.format("%d-%d", ranges.get(i), ranges.get(i + 1));
                 if (i != ranges.size() - 2) {

@@ -119,7 +119,7 @@ public class VMVentsPredictorPlugin extends Plugin {
         if (mine.getBChamber().isStatusKnown() && mine.getCChamber().isStatusKnown()) {
             // Make predictions for A but wait for a little bit first
             // to gather some initial data
-            if (mine.getNumChamberUpdates() > 2) {
+            if (mine.getNumChamberUpdates() > 1) {
                 predictor.update(shouldUpdateChambers, shouldUpdateStability);
                 setVentStatusText();
             }
