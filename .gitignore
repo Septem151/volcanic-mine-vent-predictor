@@ -6,7 +6,11 @@ build
 .classpath
 nbactions.xml
 nb-configuration.xml
+<<<<<<< HEAD
 nbproject/
 eclipse-formatter.xml
 bin/
 .vscode/
+=======
+nbproject/
+>>>>>>> template/master
